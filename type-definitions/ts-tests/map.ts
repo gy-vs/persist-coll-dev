@@ -1,5 +1,5 @@
 import { expect, test } from 'tstyche';
-import { Map, List, MapOf, OrderedMap } from 'immutable';
+import { Map, List, MapOf, OrderedMap, Set } from 'immutable';
 
 test('#constructor', () => {
   expect(Map()).type.toBe<Map<unknown, unknown>>();
@@ -26,7 +26,7 @@ test('#constructor', () => {
 
   expect(Map<{ a: string }>({ a: 'a', b: 'b' })).type.toRaiseError();
 
-  // TODO this type is really weird, it should be `Map<string, string>` or MapOf<{ a: string }> See 
+  // TODO this type is really weird, it should be `Map<string, string>` or MapOf<{ a: string }> See
   expect(Map(List([List(['a', 'b'])]))).type.toBe<MapOf<List<List<string>>>>();
 
   expect(Map([[1, 'a']])).type.not.toBeAssignableTo<Map<number, number>>();
@@ -660,6 +660,45 @@ test('#toJS', () => {
 
   expect(Map({ a: Map({ b: 'b' }) }).toJS()).type.toBe<{
     a: { b: string };
+  }>();
+});
+
+test('#toJS native', () => {
+  expect(Map<number, number>().toJS({ native: true })).type.toBe<
+    globalThis.Map<number, number>
+  >();
+
+  expect(Map({ a: 'A' }).toJS({ native: true })).type.toBe<
+    globalThis.Map<'a', string>
+  >();
+
+  expect(Map({ a: Map({ b: 'b' }) }).toJS({ native: true })).type.toBe<
+    globalThis.Map<'a', globalThis.Map<'b', string>>
+  >();
+
+  expect(Map<string, List<number>>().toJS({ native: true })).type.toBe<
+    globalThis.Map<string, number[]>
+  >();
+
+  expect(Map<string, Set<number>>().toJS({ native: true })).type.toBe<
+    globalThis.Map<string, globalThis.Set<number>>
+  >();
+
+  expect(OrderedMap<string, number>().toJS({ native: true })).type.toBe<
+    globalThis.Map<string, number>
+  >();
+
+  // without the `native` option, the behavior is unchanged
+  expect(Map<number, number>().toJS({ native: false })).type.toBe<{
+    [x: string]: number;
+    [x: number]: number;
+    [x: symbol]: number;
+  }>();
+
+  expect(Map<number, number>().toJS({})).type.toBe<{
+    [x: string]: number;
+    [x: number]: number;
+    [x: symbol]: number;
   }>();
 });
 

@@ -178,8 +178,8 @@ export class Record {
     return recordSeq(this);
   }
 
-  toJS() {
-    return toJS(this);
+  toJS(options) {
+    return toJS(this, options);
   }
 
   entries() {

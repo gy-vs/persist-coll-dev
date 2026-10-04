@@ -144,6 +144,78 @@ declare namespace Immutable {
       T;
 
   /**
+   * @ignore
+   *
+   * Used to convert deeply all immutable types to native TS types when the
+   * `native` option of `toJS` is enabled: keyed collections become native
+   * `Map`, set collections become native `Set`, indexed collections become
+   * `Array` and Records become plain objects.
+   *
+   * Note: concrete collection types are matched before their `Collection.*`
+   * base interfaces so that type arguments are inferred without loss.
+   */
+  export type DeepCopyNative<T> = T extends Record<infer R>
+    ? // convert Record to plain JS object
+      {
+        [key in keyof R]: ContainObject<R[key]> extends true ? unknown : R[key];
+      }
+    : T extends MapOf<infer R>
+    ? // convert MapOf to native Map
+      globalThis.Map<DeepCopyNative<keyof R>, DeepCopyNative<R[keyof R]>>
+    : T extends Map<infer K, infer V>
+    ? // convert Map to native Map
+      globalThis.Map<DeepCopyNative<K>, DeepCopyNative<V>>
+    : T extends List<infer V>
+    ? // convert List to plain JS array
+      Array<DeepCopyNative<V>>
+    : T extends Set<infer V>
+    ? // convert Set to native Set
+      globalThis.Set<DeepCopyNative<V>>
+    : T extends Stack<infer V>
+    ? // convert Stack to plain JS array
+      Array<DeepCopyNative<V>>
+    : T extends globalThis.Map<infer K, infer V>
+    ? // native Map stays native Map
+      globalThis.Map<DeepCopyNative<K>, DeepCopyNative<V>>
+    : T extends globalThis.Set<infer V>
+    ? // native Set stays native Set
+      globalThis.Set<DeepCopyNative<V>>
+    : T extends Collection.Keyed<infer KeyedKey, infer V>
+    ? // convert other keyed collections to native Map
+      globalThis.Map<DeepCopyNative<KeyedKey>, DeepCopyNative<V>>
+    : T extends Collection.Indexed<infer V>
+    ? // convert other indexed collections to plain JS array
+      Array<DeepCopyNative<V>>
+    : T extends Collection.Set<infer V>
+    ? // convert other set collections to native Set
+      globalThis.Set<DeepCopyNative<V>>
+    : T extends string | number // Iterable scalar types : should be kept as is
+    ? T
+    : T extends Iterable<infer V> // Iterable are converted to plain JS array
+    ? Array<DeepCopyNative<V>>
+    : T extends object // plain JS object are converted deeply
+    ? {
+        [ObjectKey in keyof T]: ContainObject<T[ObjectKey]> extends true
+          ? unknown
+          : T[ObjectKey];
+      }
+    : // other case : should be kept as is
+      T;
+
+  /**
+   * Options of the `toJS` method.
+   *
+   * When `native` is enabled, keyed collections (like `Map` and `OrderedMap`)
+   * are converted to native `Map` and set collections (like `Set` and
+   * `OrderedSet`) are converted to native `Set`, preserving their keys and
+   * iteration order. Indexed collections (like `List` and `Stack`) are still
+   * converted to `Array` and Records to plain objects.
+   */
+  export interface ToJSOptions<Native extends boolean = boolean> {
+    native?: Native;
+  }
+
+  /**
    * Describes which item in a pair should be placed first when sorting
    *
    * @ignore
@@ -882,13 +954,17 @@ declare namespace Immutable {
       key: K
     ): Extract<R[K], undefined> extends never ? never : this;
 
-    toJS(): { [K in keyof R]: DeepCopy<R[K]> };
+    toJS<Native extends boolean = false>(
+      options?: ToJSOptions<Native>
+    ): Native extends true
+      ? globalThis.Map<DeepCopyNative<keyof R>, DeepCopyNative<R[keyof R]>>
+      : { [K in keyof R]: DeepCopy<R[K]> };
 
     toJSON(): { [K in keyof R]: R[K] };
   }
 
   // Loosely based off of this work.
-  // 
+  //
 
   /** @ignore */
   type GetMapType<S> = S extends MapOf<infer T> ? T : S;
@@ -2957,10 +3033,16 @@ declare namespace Immutable {
     /**
      * Deeply converts this Record to equivalent native JavaScript Object.
      *
+     * With the `native` option enabled, this Record is still converted to a
+     * plain JavaScript Object, but nested collections are converted to native
+     * JavaScript `Map` and `Set`.
+     *
      * Note: This method may not be overridden. Objects with custom
      * serialization to plain JS may override toJSON() instead.
      */
-    toJS(): DeepCopy<TProps>;
+    toJS<Native extends boolean = false>(
+      options?: ToJSOptions<Native>
+    ): Native extends true ? DeepCopyNative<TProps> : DeepCopy<TProps>;
 
     /**
      * Shallowly converts this Record to equivalent native JavaScript Object.
@@ -3119,8 +3201,15 @@ declare namespace Immutable {
        * Deeply converts this Keyed Seq to equivalent native JavaScript Object.
        *
        * Converts keys to Strings.
+       *
+       * With the `native` option enabled, converts this Keyed Seq to a native
+       * JavaScript `Map` instead, preserving keys and iteration order.
        */
-      toJS(): { [key in string | number | symbol]: DeepCopy<V> };
+      toJS<Native extends boolean = false>(
+        options?: ToJSOptions<Native>
+      ): Native extends true
+        ? globalThis.Map<DeepCopyNative<K>, DeepCopyNative<V>>
+        : { [key in string | number | symbol]: DeepCopy<V> };
 
       /**
        * Shallowly converts this Keyed Seq to equivalent native JavaScript Object.
@@ -3261,8 +3350,13 @@ declare namespace Immutable {
     interface Indexed<T> extends Seq<number, T>, Collection.Indexed<T> {
       /**
        * Deeply converts this Indexed Seq to equivalent native JavaScript Array.
+       *
+       * With the `native` option enabled, nested collections are converted to
+       * native JavaScript `Map` and `Set`.
        */
-      toJS(): Array<DeepCopy<T>>;
+      toJS<Native extends boolean = false>(
+        options?: ToJSOptions<Native>
+      ): Native extends true ? Array<DeepCopyNative<T>> : Array<DeepCopy<T>>;
 
       /**
        * Shallowly converts this Indexed Seq to equivalent native JavaScript Array.
@@ -3436,8 +3530,15 @@ declare namespace Immutable {
     interface Set<T> extends Seq<T, T>, Collection.Set<T> {
       /**
        * Deeply converts this Set Seq to equivalent native JavaScript Array.
+       *
+       * With the `native` option enabled, converts this Set Seq to a native
+       * JavaScript `Set` instead.
        */
-      toJS(): Array<DeepCopy<T>>;
+      toJS<Native extends boolean = false>(
+        options?: ToJSOptions<Native>
+      ): Native extends true
+        ? globalThis.Set<DeepCopyNative<T>>
+        : Array<DeepCopy<T>>;
 
       /**
        * Shallowly converts this Set Seq to equivalent native JavaScript Array.
@@ -3718,8 +3819,15 @@ declare namespace Immutable {
        * Deeply converts this Keyed collection to equivalent native JavaScript Object.
        *
        * Converts keys to Strings.
+       *
+       * With the `native` option enabled, converts this Keyed collection to a
+       * native JavaScript `Map` instead, preserving keys and iteration order.
        */
-      toJS(): { [key in string | number | symbol]: DeepCopy<V> };
+      toJS<Native extends boolean = false>(
+        options?: ToJSOptions<Native>
+      ): Native extends true
+        ? globalThis.Map<DeepCopyNative<K>, DeepCopyNative<V>>
+        : { [key in string | number | symbol]: DeepCopy<V> };
 
       /**
        * Shallowly converts this Keyed collection to equivalent native JavaScript Object.
@@ -3900,8 +4008,13 @@ declare namespace Immutable {
     interface Indexed<T> extends Collection<number, T> {
       /**
        * Deeply converts this Indexed collection to equivalent native JavaScript Array.
+       *
+       * With the `native` option enabled, nested collections are converted to
+       * native JavaScript `Map` and `Set`.
        */
-      toJS(): Array<DeepCopy<T>>;
+      toJS<Native extends boolean = false>(
+        options?: ToJSOptions<Native>
+      ): Native extends true ? Array<DeepCopyNative<T>> : Array<DeepCopy<T>>;
 
       /**
        * Shallowly converts this Indexed collection to equivalent native JavaScript Array.
@@ -4211,8 +4324,15 @@ declare namespace Immutable {
     interface Set<T> extends Collection<T, T> {
       /**
        * Deeply converts this Set collection to equivalent native JavaScript Array.
+       *
+       * With the `native` option enabled, converts this Set collection to a
+       * native JavaScript `Set` instead.
        */
-      toJS(): Array<DeepCopy<T>>;
+      toJS<Native extends boolean = false>(
+        options?: ToJSOptions<Native>
+      ): Native extends true
+        ? globalThis.Set<DeepCopyNative<T>>
+        : Array<DeepCopy<T>>;
 
       /**
        * Shallowly converts this Set collection to equivalent native JavaScript Array.
@@ -4475,10 +4595,19 @@ declare namespace Immutable {
      *
      * `Collection.Indexed`, and `Collection.Set` become `Array`, while
      * `Collection.Keyed` become `Object`, converting keys to Strings.
+     *
+     * With the `native` option enabled, `Collection.Keyed` become native
+     * JavaScript `Map` and `Collection.Set` become native JavaScript `Set`,
+     * while `Collection.Indexed` still become `Array`.
      */
-    toJS():
-      | Array<DeepCopy<V>>
-      | { [key in string | number | symbol]: DeepCopy<V> };
+    toJS<Native extends boolean = false>(
+      options?: ToJSOptions<Native>
+    ): Native extends true
+      ?
+          | globalThis.Map<DeepCopyNative<K>, DeepCopyNative<V>>
+          | Array<DeepCopyNative<V>>
+          | globalThis.Set<DeepCopyNative<V>>
+      : Array<DeepCopy<V>> | { [key in string | number | symbol]: DeepCopy<V> };
 
     /**
      * Shallowly converts this Collection to equivalent native JavaScript Array or Object.

@@ -92,8 +92,8 @@ mixin(Collection, {
     return new ToIndexedSequence(this);
   },
 
-  toJS() {
-    return toJS(this);
+  toJS(options) {
+    return toJS(this, options);
   },
 
   toKeyedSeq() {

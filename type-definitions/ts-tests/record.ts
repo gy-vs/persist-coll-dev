@@ -82,6 +82,33 @@ test('Factory', () => {
   }>();
 });
 
+test('#toJS native', () => {
+  const PointXY = Record({ x: 0, y: 0 });
+  const pointXY = PointXY();
+
+  // Records still convert to plain objects
+  expect(pointXY.toJS({ native: true })).type.toBe<{ x: number; y: number }>();
+
+  const WithMap = Record({
+    map: Map({ a: 'A' }),
+    list: List(['a']),
+    set: Set(['a']),
+  });
+
+  const withMap = WithMap();
+
+  // should be `{ map: globalThis.Map<'a', string>; list: string[]; set: globalThis.Set<string>; }`
+  // but there is an issue with circular references
+  expect(withMap.toJS({ native: true })).type.toBe<{
+    map: unknown;
+    list: unknown;
+    set: unknown;
+  }>();
+
+  // without the `native` option, the behavior is unchanged
+  expect(pointXY.toJS({ native: false })).type.toBe<{ x: number; y: number }>();
+});
+
 test('optional properties', () => {
   interface Size {
     distance: string;
@@ -102,7 +129,7 @@ test('optional properties', () => {
 });
 
 test('similar properties, but one is optional', () => {
-  // see 
+  // see
 
   interface Id {
     value: string;

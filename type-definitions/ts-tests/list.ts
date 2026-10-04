@@ -1,6 +1,8 @@
 import { expect, test } from 'tstyche';
 import {
   List,
+  Map,
+  Set,
   get,
   set,
   remove,
@@ -388,6 +390,21 @@ test('#asImmutable', () => {
 
 test('#toJS', () => {
   expect(List<List<number>>().toJS()).type.toBe<number[][]>();
+});
+
+test('#toJS native', () => {
+  expect(List<List<number>>().toJS({ native: true })).type.toBe<number[][]>();
+
+  expect(List<Map<string, number>>().toJS({ native: true })).type.toBe<
+    Array<globalThis.Map<string, number>>
+  >();
+
+  expect(List<Set<number>>().toJS({ native: true })).type.toBe<
+    Array<globalThis.Set<number>>
+  >();
+
+  // without the `native` option, the behavior is unchanged
+  expect(List<number>().toJS({ native: false })).type.toBe<number[]>();
 });
 
 test('#toJSON', () => {

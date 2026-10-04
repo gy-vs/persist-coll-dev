@@ -1,5 +1,5 @@
 import { expect, test } from 'tstyche';
-import { Set, Map, Collection, OrderedSet } from 'immutable';
+import { Set, Map, Collection, List, OrderedSet } from 'immutable';
 
 test('#constructor', () => {
   expect(Set()).type.toBe<Set<unknown>>();
@@ -269,6 +269,23 @@ test('#asImmutable', () => {
 
 test('#toJS', () => {
   expect(Set<Set<number>>().toJS()).type.toBe<number[][]>();
+});
+
+test('#toJS native', () => {
+  expect(Set<Set<number>>().toJS({ native: true })).type.toBe<
+    globalThis.Set<globalThis.Set<number>>
+  >();
+
+  expect(Set<List<number>>().toJS({ native: true })).type.toBe<
+    globalThis.Set<number[]>
+  >();
+
+  expect(OrderedSet<number>().toJS({ native: true })).type.toBe<
+    globalThis.Set<number>
+  >();
+
+  // without the `native` option, the behavior is unchanged
+  expect(Set<number>().toJS({ native: false })).type.toBe<number[]>();
 });
 
 test('#toJSON', () => {
