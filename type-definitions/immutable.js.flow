@@ -115,7 +115,13 @@ declare class _Collection<K, +V> implements ValueObject {
 
   update<U>(updater: (value: this) => U): U;
 
-  toJS(): Array<any> | { [key: string]: mixed };
+  toJS(options: { +native: true }):
+    | Map<mixed, mixed>
+    | Set<mixed>
+    | Array<mixed>;
+  toJS(options?: { +native?: false }):
+    | Array<any>
+    | { [key: string]: mixed };
   toJSON(): Array<V> | { [key: string]: V };
   toArray(): Array<V> | Array<[K, V]>;
   toObject(): { [key: string]: V };
@@ -325,7 +331,8 @@ declare class KeyedCollection<K, +V> extends Collection<K, V> {
     values?: Iterable<[K, V]> | PlainObjInput<K, V>
   ): KeyedCollection<K, V>;
 
-  toJS(): { [key: string]: mixed };
+  toJS(options: { +native: true }): Map<mixed, mixed>;
+  toJS(options?: { +native?: false }): { [key: string]: mixed };
   toJSON(): { [key: string]: V };
   toArray(): Array<[K, V]>;
   @@iterator(): Iterator<[K, V]>;
@@ -376,7 +383,8 @@ Collection.Keyed = KeyedCollection;
 declare class IndexedCollection<+T> extends Collection<number, T> {
   static <T>(iter?: Iterable<T>): IndexedCollection<T>;
 
-  toJS(): Array<mixed>;
+  toJS(options: { +native: true }): Array<mixed>;
+  toJS(options?: { +native?: false }): Array<mixed>;
   toJSON(): Array<T>;
   toArray(): Array<T>;
   @@iterator(): Iterator<T>;
@@ -521,7 +529,8 @@ declare class IndexedCollection<+T> extends Collection<number, T> {
 declare class SetCollection<+T> extends Collection<T, T> {
   static <T>(iter?: Iterable<T>): SetCollection<T>;
 
-  toJS(): Array<mixed>;
+  toJS(options: { +native: true }): Set<mixed>;
+  toJS(options?: { +native?: false }): Array<mixed>;
   toJSON(): Array<T>;
   toArray(): Array<T>;
   @@iterator(): Iterator<T>;
@@ -1958,7 +1967,7 @@ declare class RecordInstance<T: Object = Object> {
 
   toSeq(): KeyedSeq<$Keys<T>, any>;
 
-  toJS(): { [key: $Keys<T>]: mixed };
+  toJS(options?: { native?: boolean }): { [key: $Keys<T>]: mixed };
   toJSON(): T;
   toObject(): T;
 

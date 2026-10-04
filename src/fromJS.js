@@ -28,12 +28,25 @@ function fromJSWith(stack, converter, value, key, keyPath, parentValue) {
     }
     stack.push(value);
     keyPath && key !== '' && keyPath.push(key);
+    const seq = Seq(value);
+    let mapped;
+    if (isKeyed(seq) && typeof Map === 'function' && value instanceof Map) {
+      // Native Maps may have non-string keys (including nested data
+      // structures), which are preserved as-is by a keyed sequence's map().
+      // Convert both keys and values recursively.
+      mapped = seq.entrySeq().map(([k, v]) => [
+        fromJSWith(stack, converter, k, '', undefined, value),
+        fromJSWith(stack, converter, v, k, keyPath, value),
+      ]).fromEntrySeq();
+    } else {
+      mapped = seq.map((v, k) =>
+        fromJSWith(stack, converter, v, k, keyPath, value)
+      );
+    }
     const converted = converter.call(
       parentValue,
       key,
-      Seq(value).map((v, k) =>
-        fromJSWith(stack, converter, v, k, keyPath, value)
-      ),
+      mapped,
       keyPath && keyPath.slice()
     );
     stack.pop();
